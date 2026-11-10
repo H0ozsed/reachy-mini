@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reachy Mini</title>
+<style>
+  :root {
+    --bg: #f4f2ee; --carte: #ffffff; --texte: #1d1b18; --doux: #6f6a62; --bord: #e2ddd4;
+    --accent: #e8590c; --accent-doux: #fff0e6; --ok: #2f9e44; --ko: #c92a2a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161513; --carte: #211f1c; --texte: #eeeae3; --doux: #a19a8f; --bord: #34312c;
+      --accent: #ff8c42; --accent-doux: #3a2618; --ok: #51cf66; --ko: #ff6b6b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--texte);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+           padding: 16px 20px; border-bottom: 1px solid var(--bord); background: var(--carte); }
+  header h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  .pastille { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--doux); }
+  .pastille::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--ko); }
+  .pastille.ok::before { background: var(--ok); }
+  main { display: grid; gap: 16px; padding: 16px; max-width: 1150px; margin: 0 auto;
+         grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  section { background: var(--carte); border: 1px solid var(--bord); border-radius: 14px; padding: 16px 18px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--doux); margin: 0 0 12px; }
+  .curseur { display: grid; grid-template-columns: 92px 1fr 52px; align-items: center; gap: 10px; margin: 6px 0; }
+  .curseur label { font-size: 14px; }
+  .curseur output { font-variant-numeric: tabular-nums; text-align: right; color: var(--doux); font-size: 13px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .boutons { display: flex; flex-wrap: wrap; gap: 8px; }
+  button { font: inherit; border: 1px solid var(--bord); background: var(--bg); color: var(--texte);
+           padding: 8px 13px; border-radius: 10px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button:active { transform: translateY(1px); }
+  button.principal { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { color: var(--ko); }
+  .ligne { display: flex; gap: 8px; margin-top: 10px; }
+  .ligne input[type=text] { flex: 1; min-width: 0; font: inherit; padding: 8px 11px; border-radius: 10px;
+                            border: 1px solid var(--bord); background: var(--bg); color: var(--texte); }
+  .sous { margin: 14px 0 6px; font-size: 13px; color: var(--doux); }
+  pre { background: var(--bg); border: 1px solid var(--bord); border-radius: 10px; padding: 10px;
+        height: 230px; overflow: auto; font-size: 13px; margin: 10px 0 0; white-space: pre-wrap; }
+  .info { font-size: 13px; color: var(--doux); }
+  #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--texte);
+           color: var(--bg); padding: 8px 14px; border-radius: 10px; font-size: 14px; opacity: 0;
+           transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+  #toast.visible { opacity: 1; }
+  .large { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🤖 Reachy Mini</h1>
+  <span id="connexion" class="pastille">connexion…</span>
+  <span id="details" class="info"></span>
+</header>
+
+<main>
+  <section>
+    <h2>Tête</h2>
+    <div id="tete"></div>
+    <div class="sous">Antennes et corps</div>
+    <div id="autres"></div>
+    <div class="boutons" style="margin-top:12px">
+      <button onclick="remettreDroit()">↺ Remettre droit</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Gestes</h2>
+    <div class="boutons" id="gestes"></div>
+    <div class="sous">Robot</div>
+    <div class="boutons">
+      <button class="principal" onclick="action('reveil')">☀️ Réveiller</button>
+      <button onclick="action('dodo')">😴 Dormir</button>
+      <button onclick="action('main_libre')" title="La tête se laisse bouger à la main et tient la position">✋ Bouger à la main</button>
+      <button onclick="action('moteurs_on')">⚙️ Moteurs ON</button>
+      <button class="danger" onclick="action('moteurs_off')" title="La tête tombe : moteurs sans force">⏻ Moteurs OFF</button>
+    </div>
+    <div class="sous">Volume du haut-parleur</div>
+    <div class="curseur"><label>Volume</label>
+      <input type="range" id="volume" min="0" max="100" value="100" onchange="regleVolume(this.value)">
+      <output id="volume-val">100</output></div>
+    <div class="sous">Faire parler le robot</div>
+    <div class="ligne">
+      <input type="text" id="phrase" placeholder="Bonjour tout le monde !" onkeydown="if(event.key==='Enter')parler()">
+      <button class="principal" onclick="parler()">🔊 Dire</button>
+    </div>
+  </section>
+
+  <section class="large">
+    <h2>Émotions</h2>
+    <div class="boutons" id="emotions"></div>
+    <div class="ligne">
+      <select id="emotion-brute" style="flex:1;min-width:0;font:inherit;padding:8px;border-radius:10px;border:1px solid var(--bord);background:var(--bg);color:var(--texte)"></select>
+      <button onclick="appel('/api/emotion/' + document.getElementById('emotion-brute').value)">▶ Jouer</button>
+      <label class="info" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="avec-son" checked> son</label>
+    </div>
+    <div class="sous">Au repos</div>
+    <div class="boutons">
+      <button onclick="appel('/api/repos/on').then(r => r && toast('Il respire 🙂'))">🌬️ Respirer / regarder autour</button>
+      <button onclick="appel('/api/repos/off')">⏸ Immobile</button>
+    </div>
+  </section>
+
+  <section class="large">
+    <h2>Danses</h2>
+    <div class="boutons">
+      <button class="principal" onclick="appel('/api/danse/aleatoire')">🎲 Danse surprise</button>
+      <button class="danger" onclick="appel('/api/danse_stop')">⏹ Stop</button>
+    </div>
+    <div class="boutons" id="danses" style="margin-top:10px"></div>
+  </section>
+
+  <section class="large">
+    <h2>Assistant vocal (Gemma)</h2>
+    <div class="boutons">
+      <button class="principal" id="btn-assistant" onclick="basculeAssistant()">▶ Lancer l'assistant</button>
+      <button id="btn-app-robot" onclick="stopAppRobot()" hidden>⏹ Arrêter l'app du robot</button>
+    </div>
+    <pre id="log">L'assistant n'est pas lancé.</pre>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script>
+const TETE = [
+  ["yaw", "Gauche/droite", -45, 45, "°"], ["pitch", "Haut/bas", -30, 30, "°"],
+  ["roll", "Pencher", -30, 30, "°"], ["x", "Avant/arrière", -20, 20, "mm"],
+  ["y", "Côté", -20, 20, "mm"], ["z", "Hauteur", -20, 20, "mm"],
+];
+const AUTRES = [
+  ["antenne_gauche", "Antenne G", -120, 120, "°"], ["antenne_droite", "Antenne D", -120, 120, "°"],
+  ["corps", "Corps", -150, 150, "°"],
+];
+const GESTES = { oui: "👍 Oui", non: "👎 Non", content: "😊 Content", triste: "😢 Triste",
+  surpris: "😮 Surpris", coucou: "👋 Coucou", gauche: "👈 Gauche", droite: "👉 Droite",
+  haut: "⬆️ Haut", bas: "⬇️ Bas", tourne: "🔄 Tourne", danse: "💃 Danse" };
+
+const pose = {};
+function curseurs(id, liste) {
+  const zone = document.getElementById(id);
+  for (const [cle, nom, min, max, unite] of liste) {
+    pose[cle] = 0;
+    const div = document.createElement("div");
+    div.className = "curseur";
+    div.innerHTML = `<label for="c-${cle}">${nom}</label>
+      <input type="range" id="c-${cle}" min="${min}" max="${max}" step="1" value="0">
+      <output id="o-${cle}">0${unite}</output>`;
+    zone.appendChild(div);
+    div.querySelector("input").addEventListener("input", e => {
+      pose[cle] = Number(e.target.value);
+      document.getElementById("o-" + cle).textContent = e.target.value + unite;
+      envoiePose();
+    });
+  }
+}
+curseurs("tete", TETE);
+curseurs("autres", AUTRES);
+
+const zoneGestes = document.getElementById("gestes");
+for (const [nom, label] of Object.entries(GESTES)) {
+  const b = document.createElement("button");
+  b.textContent = label;
+  b.onclick = () => appel("/api/geste/" + nom);
+  zoneGestes.appendChild(b);
+}
+
+const EMOJIS = { oui: "👍", non: "👎", content: "😊", rire: "😂", triste: "😢", surpris: "😮",
+  colere: "😠", peur: "😨", reflechit: "🤔", perplexe: "😕", curieux: "🧐", amour: "🥰", merci: "🙏",
+  fier: "😎", fatigue: "🥱", ennui: "😒", timide: "😳", degout: "🤢", oups: "😬", soulage: "😌", coucou: "👋" };
+const jouerEmotion = nom =>
+  appel("/api/emotion/" + nom + "?son=" + document.getElementById("avec-son").checked);
+fetch("/api/emotions").then(r => r.json()).then(e => {
+  const zone = document.getElementById("emotions");
+  for (const t of e.tags) {
+    const b = document.createElement("button");
+    b.textContent = (EMOJIS[t] || "") + " " + t;
+    b.onclick = () => jouerEmotion(t);
+    zone.appendChild(b);
+  }
+  const sel = document.getElementById("emotion-brute");
+  sel.innerHTML = e.toutes.map(n => `<option value="${n}">${n}</option>`).join("");
+  sel.nextElementSibling.onclick = () => jouerEmotion(sel.value);
+});
+
+fetch("/api/danses").then(r => r.json()).then(liste => {
+  const zone = document.getElementById("danses");
+  for (const d of liste) {
+    const b = document.createElement("button");
+    b.textContent = d.nom.replace(/_/g, " ");
+    b.title = d.description;
+    b.onclick = () => appel("/api/danse/" + d.nom + "?duree=8");
+    zone.appendChild(b);
+  }
+});
+
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("visible");
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("visible"), 2500);
+}
+
+async function appel(url, corps) {
+  try {
+    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+                                 body: corps ? JSON.stringify(corps) : undefined });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); toast(e.detail || "Erreur " + r.status); return null; }
+    return await r.json();
+  } catch (e) { toast("Interface injoignable"); return null; }
+}
+
+// envoi limité à ~12 fois par seconde pendant qu'on glisse un curseur
+let enVol = false, enAttente = false;
+async function envoiePose() {
+  if (enVol) { enAttente = true; return; }
+  enVol = true;
+  await appel("/api/pose", pose);
+  await new Promise(r => setTimeout(r, 80));
+  enVol = false;
+  if (enAttente) { enAttente = false; envoiePose(); }
+}
+
+function remettreDroit() {
+  for (const cle in pose) {
+    pose[cle] = 0;
+    document.getElementById("c-" + cle).value = 0;
+    const unite = document.getElementById("o-" + cle).textContent.replace(/[-0-9]/g, "");
+    document.getElementById("o-" + cle).textContent = "0" + unite;
+  }
+  appel("/api/action/neutre");
+}
+
+async function action(nom) { if (await appel("/api/action/" + nom)) toast("OK"); }
+
+function regleVolume(v) {
+  document.getElementById("volume-val").textContent = v;
+  appel("/api/volume", { volume: Number(v) });
+}
+document.getElementById("volume").addEventListener("input", e =>
+  document.getElementById("volume-val").textContent = e.target.value);
+
+async function parler() {
+  const champ = document.getElementById("phrase");
+  if (!champ.value.trim()) return;
+  toast("🔊 …");
+  if (await appel("/api/dire", { texte: champ.value })) { champ.value = ""; }
+}
+
+let assistantActif = false;
+async function basculeAssistant() {
+  const r = await appel("/api/assistant/" + (assistantActif ? "stop" : "start"));
+  if (r) majAssistant(r.actif);
+}
+function majAssistant(actif) {
+  assistantActif = actif;
+  const b = document.getElementById("btn-assistant");
+  b.textContent = actif ? "⏹ Arrêter l'assistant" : "▶ Lancer l'assistant";
+  b.className = actif ? "danger" : "principal";
+}
+async function stopAppRobot() { await appel("/api/app_robot/stop"); toast("App du robot arrêtée"); }
+
+let volumeInit = false;
+async function rafraichir() {
+  try {
+    const e = await (await fetch("/api/etat")).json();
+    const c = document.getElementById("connexion");
+    c.className = "pastille" + (e.joignable ? " ok" : "");
+    c.textContent = e.joignable ? "connecté" : "robot introuvable (" + e.host + ")";
+    document.getElementById("details").textContent = e.joignable
+      ? `v${e.version} · ${e.ip} · moteurs ${e.moteurs}` : "";
+    if (e.volume != null && !volumeInit) {
+      document.getElementById("volume").value = e.volume;
+      document.getElementById("volume-val").textContent = e.volume;
+      volumeInit = true;
+    }
+    document.getElementById("btn-app-robot").hidden = !e.app_robot;
+    if (e.app_robot) document.getElementById("btn-app-robot").textContent = "⏹ Arrêter l'app du robot (" + e.app_robot + ")";
+    majAssistant(e.assistant);
+    const log = document.getElementById("log");
+    const enBas = log.scrollTop + log.clientHeight >= log.scrollHeight - 10;
+    log.textContent = e.log.length ? e.log.join("\n") : (e.assistant ? "Démarrage…" : "L'assistant n'est pas lancé.");
+    if (enBas) log.scrollTop = log.scrollHeight;
+  } catch { document.getElementById("connexion").textContent = "interface arrêtée"; }
+}
+rafraichir();
+setInterval(rafraichir, 1500);
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+pygobject; sys_platform == "never"
